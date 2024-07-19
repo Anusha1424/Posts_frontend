@@ -1,0 +1,43 @@
+.post-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.post-card {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.post-card h2 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.post-card p {
+    color: #666;
+}
+
+.related-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.related-content-card {
+    background-color: #e9e9e9;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.related-content-card h3 {
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.related-content-card p {
+    color: #666;
+}
