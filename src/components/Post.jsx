@@ -11,6 +11,7 @@ const GET_POSTS = gql`
       title
       content
       order
+      image
     }
   }
 `;
@@ -30,13 +31,14 @@ function PostList() {
   const { loading, error, data } = useQuery(GET_POSTS);
   const [posts, setPosts] = useState([]);
   const [reorderPosts] = useMutation(REORDER_POSTS);
-  const [reOrderPost, setReOrderPost] = useState(false);
-
+  const [init, setInit] = useState(true);
+  const dummyImageUrl = 'https://via.placeholder.com/345';
   useEffect(() => {
-    if (data && data.posts && !reOrderPost) {
+    if (data && data.posts && init) {
       setPosts(data.posts);
+      setInit(false);
     }
-  }, [data, reOrderPost])
+  }, [data, init])
 
 
   const handleOnDragEnd = (result) => {
@@ -47,11 +49,9 @@ function PostList() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
     const ids = items.map(item => item.id);
-    setReOrderPost(true)
     reorderPosts({ variables: { ids } })
       .then(response => {
         console.log('Posts reordered:', response.data.reorderPosts);
-        setReOrderPost(false);
       })
       .catch(error => console.error('Error reordering posts:', error));
     setPosts(items);
@@ -70,9 +70,11 @@ function PostList() {
     >
       <Container>
         <DragDropContext onDragEnd={handleOnDragEnd}>
-          <StrictModeDroppable droppableId="droppable-grid" direction="horizontal">
+          <StrictModeDroppable droppableId="droppable-grid">
             {(provided) => (
-              <Grid container spacing={4} {...provided.droppableProps} ref={provided.innerRef}>
+              <Grid container spacing={3} {...provided.droppableProps} direction="column" ref={provided.innerRef} justifyContent="center"
+                alignItems="center"
+              >
                 {posts.map((post, index) => (
                   <Draggable key={post.id} draggableId={post.id} index={index}>
                     {(provided) => (
@@ -85,13 +87,8 @@ function PostList() {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <Card sx={{ maxWidth: 345, boxShadow: 3 }}>
-                          {/* <CardMedia
-                component="img"
-                height="140"
-                image={post.imageUrl}
-                alt={post.title}
-              /> */}
+                        <Card sx={{ maxWidth: 800, boxShadow: 3 }}>
+
                           <CardContent>
                             <Typography gutterBottom variant="h5" component="div">
                               {post.title}
@@ -100,6 +97,12 @@ function PostList() {
                               {post.content}
                             </Typography>
                           </CardContent>
+                          <CardMedia
+                            component="img"
+                            height="240"
+                            image={post.image || dummyImageUrl}
+                            alt={post.title}
+                          />
                           <CardActions style={{ justifyContent: "center" }}>
                             <Button size="small" color="primary">Share</Button>
                             <Button size="small" color="primary">Learn More</Button>
