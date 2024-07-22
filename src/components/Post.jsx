@@ -1,9 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { useQuery, gql, useMutation } from '@apollo/client';
-import { Box, Button, Card, CardActionArea, CardActions, CardContent, CardMedia, Container, Grid, Pagination, Skeleton, Typography } from '@mui/material';
+import { gql, useMutation, useQuery } from '@apollo/client';
+import {
+  Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CardMedia,
+  Container,
+  Grid,
+  Skeleton,
+  Typography,
+} from '@mui/material';
+import React, { useEffect, useRef, useState } from 'react';
 import { DragDropContext, Draggable } from 'react-beautiful-dnd';
 import { StrictModeDroppable } from './StrictModeDroppable';
-
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const GET_POSTS = gql`
   query GetPosts($limit: Int, $offset: Int) {
@@ -30,30 +41,63 @@ const REORDER_POSTS = gql`
   }
 `;
 
-
+let postlength = 0;
 function PostList() {
-  const [currentPage, setCurrentPage] = useState(0);
-  const { loading, error, data } = useQuery(GET_POSTS, {
-    variables: { limit: 10, offset: currentPage * 10 },
+  const { loading, error, data, fetchMore } = useQuery(GET_POSTS, {
+    variables: { limit: 10, offset: 0 },
   });
-  console.log(data)
   const [posts, setPosts] = useState([]);
   const [reorderPosts] = useMutation(REORDER_POSTS);
   const [init, setInit] = useState(true);
-  const [totalPages, setTotalPages] = useState(0);
-
+  const observer = useRef();
 
   const dummyImageUrl = 'https://via.placeholder.com/345';
+  const isLargeScreen = useMediaQuery('(min-width:800px)')
   useEffect(() => {
     if (data && data.posts && data.posts.posts && init) {
       setPosts(data.posts.posts);
-      setTotalPages(Math.ceil(data.posts.totalCount / 10));
-      // setCurrentPage(data.posts.currentPage)
-
       setInit(false);
     }
-  }, [data, init])
+  }, [data, init]);
+  useEffect(() => {
+    if (posts) {
+      postlength = posts.length;
+    }
+  }, [posts]);
 
+  useEffect(() => {
+    if (!observer.current) {
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          fetchMore({
+            variables: {
+              offset: postlength,
+            },
+          }).then((fetchMoreResult) => {
+            setPosts((prevPosts) => [
+              ...prevPosts,
+              ...fetchMoreResult.data.posts.posts,
+            ]);
+          });
+        }
+      });
+    }
+    const currentObserver = observer.current;
+    if (currentObserver && posts.length) {
+      const lastPost = document.querySelector('#last-post');
+      if (lastPost) {
+        currentObserver.observe(lastPost);
+      }
+    }
+    return () => {
+      if (currentObserver && posts.length) {
+        const lastPost = document.querySelector('#last-post');
+        if (lastPost) {
+          currentObserver.unobserve(lastPost);
+        }
+      }
+    };
+  }, [posts, fetchMore]);
 
   const handleOnDragEnd = (result) => {
     if (!result.destination) return;
@@ -62,64 +106,59 @@ function PostList() {
 
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
-    const ids = items.map(item => item.id);
+    const ids = items.map((item) => item.id);
     reorderPosts({ variables: { ids } })
-      .then(response => {
+      .then((response) => {
         console.log('Posts reordered:', response.data.reorderPosts);
       })
-      .catch(error => console.error('Error reordering posts:', error));
+      .catch((error) => console.error('Error reordering posts:', error));
     setPosts(items);
   };
-  const handleChange = (event, value) => {
-    setCurrentPage(value);
-  };
-
-  // if (loading) return <p>Loading...</p>;
-  // if (error) return <p>Error: {error.message}</p>;
 
   return (
-
-    <Box
-      display="flex"
-      justifyContent="center"
-
-      minHeight="100vh"
-    >
+    <Box display="flex" justifyContent="center" minHeight="100vh">
       <Container>
-        <Pagination count={totalPages} page={currentPage} onChange={handleChange} showFirstButton showLastButton />
-        {loading || true ?
-          <Grid container spacing={3} direction="column" justifyContent="center"
+        {loading ? (
+          <Grid
+            container
+            spacing={3}
+            direction="column"
+            justifyContent="center"
             alignItems="center"
           >
-            {
-              Array.from(new Array(3)).map((item, index) => (
-                <Box key={index} mb={5} style={{ width: 800, my: 5 }}>
+            {Array.from(new Array(3)).map((item, index) => (
+              <Box key={index} mb={5} style={{ width: 800, my: 5 }}>
+                <Skeleton variant="rectangular" width={800} height={170} />
 
-                  <Skeleton variant="rectangular" width={800} height={170} />
-
-
-
-                  <Box sx={{ pt: 0.5 }}>
-                    <Skeleton />
-                    <Skeleton width="60%" />
-                  </Box>
-
+                <Box sx={{ pt: 0.5 }}>
+                  <Skeleton />
+                  <Skeleton width="60%" />
                 </Box>
-
-              ))}
+              </Box>
+            ))}
           </Grid>
-
-          :
+        ) : (
           <DragDropContext onDragEnd={handleOnDragEnd}>
             <StrictModeDroppable droppableId="droppable-grid">
               {(provided) => (
-                <Grid container spacing={3} {...provided.droppableProps} direction="column" ref={provided.innerRef} justifyContent="center"
+                <Grid
+                  container
+                  spacing={3}
+                  {...provided.droppableProps}
+                  direction="column"
+                  ref={provided.innerRef}
+                  justifyContent="center"
                   alignItems="center"
                 >
                   {posts.map((post, index) => (
-                    <Draggable key={post.id} draggableId={post.id} index={index}>
+                    <Draggable
+                      key={post.id}
+                      draggableId={post.id}
+                      index={index}
+                    >
                       {(provided) => (
                         <Grid
+                          key={post.id}
                           item
                           xs={12}
                           sm={6}
@@ -127,14 +166,21 @@ function PostList() {
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
+                          id={index === posts.length - 1 ? 'last-post' : null}
                         >
-                          <Card sx={{ width: 800, boxShadow: 3 }}>
-
+                          <Card sx={{ minWidth: isLargeScreen ? 800 : 'auto', maxWidth: 800, boxShadow: 3 }}>
                             <CardContent>
-                              <Typography gutterBottom variant="h5" component="div">
+                              <Typography
+                                gutterBottom
+                                variant="h5"
+                                component="div"
+                              >
                                 {post.title}
                               </Typography>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                              >
                                 {post.content}
                               </Typography>
                             </CardContent>
@@ -145,9 +191,13 @@ function PostList() {
                               image={post.image || dummyImageUrl}
                               alt={post.title}
                             />
-                            <CardActions style={{ justifyContent: "center" }}>
-                              <Button size="small" color="primary">Share</Button>
-                              <Button size="small" color="primary">Learn More</Button>
+                            <CardActions style={{ justifyContent: 'center' }}>
+                              <Button size="small" color="primary">
+                                Share
+                              </Button>
+                              <Button size="small" color="primary">
+                                Learn More
+                              </Button>
                             </CardActions>
                           </Card>
                         </Grid>
@@ -159,7 +209,7 @@ function PostList() {
               )}
             </StrictModeDroppable>
           </DragDropContext>
-        }
+        )}
       </Container>
     </Box>
   );

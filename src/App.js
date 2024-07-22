@@ -8,7 +8,6 @@ function App() {
     <div className="App">
       <div>
         <h1>Posts</h1>
-
         <PostList />
       </div>
     </div>
